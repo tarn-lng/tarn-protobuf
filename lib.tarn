@@ -3,6 +3,9 @@
 // borrowed input and returns Copy field descriptors (no stored borrows).
 import "string"
 
+const MAX_FIELD_NUMBER u32 = 536870911
+const U64_MAX u64 = 18446744073709551615
+
 pub copy enum Error {
     Truncated
     VarintOverflow
@@ -36,7 +39,7 @@ fn Writer._varint(&mut self, value u64) {
     self.data.push(u8(rest))
 }
 fn Writer._tag(&mut self, number u32, wire u8) {
-    if number == 0 || number > 536870911 { panic("protobuf field number out of range") }
+    if number == 0 || number > MAX_FIELD_NUMBER { panic("protobuf field number out of range") }
     self._varint((u64(number) << 3) | u64(wire))
 }
 pub fn Writer.uint64(&mut self, number u32, value u64) {
@@ -82,7 +85,7 @@ pub fn Writer.message(&mut self, number u32, value &Writer) { self.bytes(number,
 fn _twos(value i64) u64 {
     if value >= 0 { return u64(value) }
     // Two's complement without overflow: 2^64 - |value|.
-    return (u64(-(value + 1)) ^ 18446744073709551615)
+    return (u64(-(value + 1)) ^ U64_MAX)
 }
 
 fn _read_varint(data &[]u8, cursor &mut usize) Result<u64, Error> {
@@ -107,7 +110,7 @@ pub fn next(data &[]u8, cursor &mut usize) Result<Option<Field>, Error> {
     key := try _read_varint(data, cursor)
     number := key >> 3
     wire := u8(key & 7)
-    if number == 0 || number > 536870911 { return Err(Error.InvalidFieldNumber) }
+    if number == 0 || number > u64(MAX_FIELD_NUMBER) { return Err(Error.InvalidFieldNumber) }
     var field = Field{number: u32(number), wire: wire, value: 0, start: 0, end: 0}
     if wire == 0 {
         field.value = try _read_varint(data, cursor)
@@ -145,7 +148,7 @@ pub fn Field.uint32(&self) Result<u32, Error> {
 pub fn Field.int64(&self) Result<i64, Error> {
     if self.wire != 0 { return Err(Error.WrongWireType) }
     if self.value < 9223372036854775808 { return Ok(i64(self.value)) }
-    return Ok(-i64(self.value ^ 18446744073709551615) - 1)
+    return Ok(-i64(self.value ^ U64_MAX) - 1)
 }
 pub fn Field.int32(&self) Result<i32, Error> {
     low := (try self.int64()) & 4294967295
@@ -173,6 +176,5 @@ pub fn Field.bytes(&self, data &[]u8) Result<&[]u8, Error> {
     return Ok(&data[self.start..self.end])
 }
 pub fn Field.string(&self, data &[]u8) Result<string, Error> {
-    match string.from_utf8(try self.bytes(data)) { Some(text) => { return Ok(text) }
-        None => { return Err(Error.InvalidUtf8) } }
+    return string.from_utf8(try self.bytes(data)).ok_or(Error.InvalidUtf8)
 }

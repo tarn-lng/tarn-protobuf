@@ -1,5 +1,11 @@
 # tarn-protobuf
 
+Requires **Tarn 0.2.0 or newer**. Package version 0.1.1 is independent of the
+compiler version. Discover APIs with the installed `tarn syntax` and `tarn stdlib`.
+Run `bash tests/run.sh /path/to/tarn` or `bash tests/run.sh --docker` to use
+the official Tarn 0.2.0 image pinned by digest.
+
+
 Protocol Buffers wire format for [Tarn](https://github.com/tarn-lng/tarn),
 written in pure Tarn with no schema compiler and no native code.
 
